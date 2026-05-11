@@ -1,0 +1,86 @@
+@page "/login"
+@rendermode InteractiveServer
+@using MiniTienda.Services
+@inject MiniTienda.Services.PostgresService postgresService
+@inject FirebaseAuthService authService
+
+<link href="login.css" rel="stylesheet" />
+
+<div class="login-bg">
+    <div class="overlay"></div>
+
+    <div class="login-container">
+
+        <h3>Iniciar Sesión</h3>
+
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" @bind="email" placeholder="Ingresa tu correo" />
+        </div>
+
+        <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" @bind="password" placeholder="Ingresa tu contraseña" />
+        </div>
+
+        <button @onclick="IniciarSesion">
+            Iniciar Sesión
+        </button>
+
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <p>@mensaje</p>
+        }
+
+    </div>
+</div>
+
+@code {
+    private string email = "";
+    private string password = "";
+    private string mensaje = "";
+
+    private async Task IniciarSesion()
+{
+    try
+    {
+        mensaje = "Entrando al método...";
+
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            mensaje = "Completa todos los campos.";
+            return;
+        }
+
+        mensaje = "Validando Firebase...";
+
+        var resultado = await authService.Login(email, password);
+
+        mensaje = resultado;
+
+        if (resultado.Contains("idToken"))
+        {
+            mensaje = "Firebase correcto.";
+
+            var usuario = postgresService.ObtenerUsuarioPorCorreo(email);
+
+            if (usuario != null)
+            {
+                mensaje = $"Bienvenido {usuario.Nombre} - Rol: {usuario.Rol}";
+            }
+            else
+            {
+                mensaje = "Usuario autenticado pero no existe en PostgreSQL.";
+            }
+        }
+        else
+        {
+            mensaje = "Correo o contraseña incorrectos.";
+        }
+    }
+    catch (Exception ex)
+    {
+        mensaje = ex.Message;
+    }
+}
+}

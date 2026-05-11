@@ -1,0 +1,84 @@
+@page "/register"
+@rendermode InteractiveServer
+
+@using MiniTienda.Services
+
+@inject FirebaseAuthService authService
+@inject PostgresService postgresService
+
+<link href="login.css" rel="stylesheet" />
+
+<div class="login-bg">
+    <div class="overlay"></div>
+
+    <div class="login-container">
+
+        <h3>Crear Cuenta</h3>
+
+        <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" @bind="nombre" placeholder="Ingresa tu nombre" />
+        </div>
+
+        <div class="form-group">
+            <label>Correo</label>
+            <input type="email" @bind="email" placeholder="Ingresa tu correo" />
+        </div>
+
+        <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" @bind="password" placeholder="Ingresa tu contraseña" />
+        </div>
+
+        <button @onclick="Registrar">
+            Registrarse
+        </button>
+
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <p>@mensaje</p>
+        }
+
+    </div>
+</div>
+
+@code {
+
+    private string nombre = "";
+    private string email = "";
+    private string password = "";
+    private string mensaje = "";
+
+    private async Task Registrar()
+    {
+        mensaje = "Creando usuario en Firebase...";
+
+        var resultado = await authService.Register(email, password);
+
+        if (resultado.Contains("localId"))
+        {
+            string firebaseUid = ExtraerUid(resultado);
+
+            postgresService.InsertarUsuario(
+                firebaseUid,
+                nombre,
+                email
+            );
+
+            mensaje = "Usuario registrado correctamente.";
+        }
+        else
+        {
+            mensaje = "Error al registrar usuario.";
+        }
+    }
+
+    private string ExtraerUid(string json)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+
+        return doc.RootElement
+                  .GetProperty("localId")
+                  .GetString()!;
+    }
+}
