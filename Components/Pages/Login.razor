@@ -1,6 +1,7 @@
 @page "/login"
 @rendermode InteractiveServer
 @using MiniTienda.Services
+@inject NavigationManager nav
 @inject MiniTienda.Services.PostgresService postgresService
 @inject FirebaseAuthService authService
 
@@ -26,6 +27,11 @@
         <button @onclick="IniciarSesion">
             Iniciar Sesión
         </button>
+
+        <button class="register-btn"
+             @onclick='() => nav.NavigateTo("/register")'>
+             Registrarte
+            </button>
 
         @if (!string.IsNullOrEmpty(mensaje))
         {
