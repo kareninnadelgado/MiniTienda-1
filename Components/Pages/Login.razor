@@ -28,10 +28,9 @@
             Iniciar Sesión
         </button>
 
-        <button class="register-btn"
-             @onclick='() => nav.NavigateTo("/register")'>
-             Registrarte
-            </button>
+        <button class="register-btn" @onclick='() => nav.NavigateTo("/register")'>
+            Registrarte
+        </button>
 
         @if (!string.IsNullOrEmpty(mensaje))
         {
@@ -46,47 +45,59 @@
     private string password = "";
     private string mensaje = "";
 
-    private async Task IniciarSesion()
-{
-    try
+private async Task IniciarSesion()
     {
-        mensaje = "Entrando al método...";
-
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        try
         {
-            mensaje = "Completa todos los campos.";
-            return;
-        }
+            mensaje = "Entrando al método...";
 
-        mensaje = "Validando Firebase...";
-
-        var resultado = await authService.Login(email, password);
-
-        mensaje = resultado;
-
-        if (resultado.Contains("idToken"))
-        {
-            mensaje = "Firebase correcto.";
-
-            var usuario = postgresService.ObtenerUsuarioPorCorreo(email);
-
-            if (usuario != null)
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             {
-                mensaje = $"Bienvenido {usuario.Nombre} - Rol: {usuario.Rol}";
+                mensaje = "Completa todos los campos.";
+                return;
+            }
+
+            mensaje = "Validando Firebase...";
+            var resultado = await authService.Login(email, password);
+
+            if (resultado.Contains("idToken"))
+            {
+                mensaje = "Firebase correcto. Buscando en base de datos...";
+
+                // 1. Buscamos el usuario en MySQL
+                var usuario = postgresService.ObtenerUsuarioPorCorreo(email);
+
+                if (usuario != null)
+                {
+                    // 2. ¡ESTA ES LA PARTE CLAVE! 
+                    // Guardamos al usuario en el servicio para que "Productos.razor" pueda verlo
+                    postgresService.SetUsuarioActual(usuario);
+
+                    mensaje = $"Bienvenido {usuario.Nombre} - Rol: {usuario.Rol}";
+
+                    // 3. Redirigimos según el rol
+                    if (usuario.Rol == "admin")
+                    {
+                        nav.NavigateTo("/productos");
+                    }
+                    else
+                    {
+                        nav.NavigateTo("/"); // Los clientes van al inicio
+                    }
+                }
+                else
+                {
+                    mensaje = "Usuario autenticado pero no existe en PostgreSQL.";
+                }
             }
             else
             {
-                mensaje = "Usuario autenticado pero no existe en PostgreSQL.";
+                mensaje = "Correo o contraseña incorrectos.";
             }
         }
-        else
+        catch (Exception ex)
         {
-            mensaje = "Correo o contraseña incorrectos.";
+            mensaje = "Error: " + ex.Message;
         }
     }
-    catch (Exception ex)
-    {
-        mensaje = ex.Message;
-    }
-}
 }

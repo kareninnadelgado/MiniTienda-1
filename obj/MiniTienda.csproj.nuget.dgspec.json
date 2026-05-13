@@ -1,25 +1,31 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\karen\\OneDrive\\Escritorio\\MiniTienda\\MiniTienda.csproj": {}
+    "C:\\Users\\Colibecas\\OneDrive\\Desktop\\MiniTiendaMVP_2\\MiniTienda-1\\MiniTienda.csproj": {}
   },
   "projects": {
-    "C:\\Users\\karen\\OneDrive\\Escritorio\\MiniTienda\\MiniTienda.csproj": {
+    "C:\\Users\\Colibecas\\OneDrive\\Desktop\\MiniTiendaMVP_2\\MiniTienda-1\\MiniTienda.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\karen\\OneDrive\\Escritorio\\MiniTienda\\MiniTienda.csproj",
+        "projectUniqueName": "C:\\Users\\Colibecas\\OneDrive\\Desktop\\MiniTiendaMVP_2\\MiniTienda-1\\MiniTienda.csproj",
         "projectName": "MiniTienda",
-        "projectPath": "C:\\Users\\karen\\OneDrive\\Escritorio\\MiniTienda\\MiniTienda.csproj",
-        "packagesPath": "C:\\Users\\karen\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\karen\\OneDrive\\Escritorio\\MiniTienda\\obj\\",
+        "projectPath": "C:\\Users\\Colibecas\\OneDrive\\Desktop\\MiniTiendaMVP_2\\MiniTienda-1\\MiniTienda.csproj",
+        "packagesPath": "C:\\Users\\Colibecas\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Colibecas\\OneDrive\\Desktop\\MiniTiendaMVP_2\\MiniTienda-1\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\karen\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Colibecas\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
