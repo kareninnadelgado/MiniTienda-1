@@ -1,5 +1,66 @@
 ﻿@inherits LayoutComponentBase
+@inject MiniTienda.Services.PostgresService PostgresService
+@inject NavigationManager Nav
 
-<div>
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">MiniTienda</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Alternar navegación">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                @if (EsAdmin)
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/registro-productos">Registro</NavLink>
+                    </li>
+                }
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/">Inicio</NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="/productos">Productos</NavLink>
+                </li>
+                @if (usuarioSesion != null && !EsAdmin)
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/carrito">Carrito</NavLink>
+                    </li>
+                }
+            </ul>
+            <div class="d-flex align-items-center gap-2">
+                @if (usuarioSesion != null)
+                {
+                    <span class="badge bg-secondary text-uppercase">@usuarioSesion.Rol</span>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="CerrarSesion">Cerrar sesión</button>
+                }
+                else
+                {
+                    <NavLink class="btn btn-outline-primary btn-sm" href="/login">Iniciar sesión</NavLink>
+                    <NavLink class="btn btn-primary btn-sm" href="/register">Registrarte</NavLink>
+                }
+            </div>
+        </div>
+    </div>
+</nav>
+<div class="container py-4">
     @Body
 </div>
+
+@code {
+    private MiniTienda.Models.Usuario? usuarioSesion;
+
+    private bool EsAdmin => string.Equals(usuarioSesion?.Rol, "admin", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnParametersSet()
+    {
+        usuarioSesion = PostgresService.ObtenerUsuarioActual();
+    }
+
+    private void CerrarSesion()
+    {
+        PostgresService.ClearUsuarioActual();
+        Nav.NavigateTo("/");
+    }
+}

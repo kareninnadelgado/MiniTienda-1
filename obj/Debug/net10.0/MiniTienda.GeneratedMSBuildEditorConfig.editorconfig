@@ -26,6 +26,10 @@ build_property.EnableCodeStyleSeverity =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/Colibecas/OneDrive/Desktop/MiniTiendaMVP_2/MiniTienda-1/Components/Pages/Carrito.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDYXJyaXRvLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/Colibecas/OneDrive/Desktop/MiniTiendaMVP_2/MiniTienda-1/Components/Pages/Counter.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDb3VudGVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
@@ -52,6 +56,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/Colibecas/OneDrive/Desktop/MiniTiendaMVP_2/MiniTienda-1/Components/Pages/Register.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xSZWdpc3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/Colibecas/OneDrive/Desktop/MiniTiendaMVP_2/MiniTienda-1/Components/Pages/RegistroProductos.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xSZWdpc3Ryb1Byb2R1Y3Rvcy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/Colibecas/OneDrive/Desktop/MiniTiendaMVP_2/MiniTienda-1/Components/Pages/Weather.razor]

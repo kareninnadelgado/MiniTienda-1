@@ -1,0 +1,261 @@
+@page "/registro-productos"
+@using MiniTienda.Models
+@inject MiniTienda.Services.PostgresService postgresService
+@inject NavigationManager nav
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+<PageTitle>Registro de Productos</PageTitle>
+
+@if (!EsAdmin)
+{
+    <div class="alert alert-danger">
+        <h4>Acceso Restringido</h4>
+        <p>Solo administradores pueden acceder a este apartado.</p>
+    </div>
+}
+else
+{
+    <div class="py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-1">Gestión de Productos</h1>
+                <p class="text-muted mb-0">Administra el inventario completo del mini súper.</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(estadoMensaje))
+        {
+            <div class="alert alert-@tipoMensaje alert-dismissible fade show" role="alert">
+                @estadoMensaje
+                <button type="button" class="btn-close" @onclick="() => estadoMensaje = string.Empty"></button>
+            </div>
+        }
+
+        <div class="row gy-4">
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">@(esEdicion ? "Editar Producto" : "Agregar Nuevo Producto")</h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="productoActual" OnValidSubmit="Guardar" OnInvalidSubmit="FormInvalido">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="mb-3">
+                                <label class="form-label">Nombre</label>
+                                <InputText class="form-control" @bind-Value="productoActual.Nombre" placeholder="Ej. Leche" />
+                                <ValidationMessage For="() => productoActual.Nombre" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Categoría</label>
+                                <InputSelect class="form-select" @bind-Value="productoActual.Categoria">
+                                    <option value="">Seleccionar</option>
+                                    <option value="Frutas y Verduras">Frutas y Verduras</option>
+                                    <option value="Abarrotes">Abarrotes</option>
+                                    <option value="Dulces y Botanas">Dulces y Botanas</option>
+                                    <option value="Ferretería">Ferretería</option>
+                                    <option value="Desechables">Desechables</option>
+                                    <option value="Repostería">Repostería</option>
+                                    <option value="Lácteos">Lácteos</option>
+                                    <option value="Limpieza">Limpieza</option>
+                                </InputSelect>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Precio ($)</label>
+                                <InputNumber class="form-control" @bind-Value="productoActual.Precio" step="0.50" />
+                                <ValidationMessage For="() => productoActual.Precio" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Stock</label>
+                                <InputNumber class="form-control" @bind-Value="productoActual.Stock" />
+                                <ValidationMessage For="() => productoActual.Stock" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Descripción</label>
+                                <InputTextArea class="form-control" @bind-Value="productoActual.Descripcion" rows="4" placeholder="Descripción del producto" />
+                                <ValidationMessage For="() => productoActual.Descripcion" />
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success flex-grow-1">
+                                    @(esEdicion ? "Actualizar" : "Guardar")
+                                </button>
+                                @if (esEdicion)
+                                {
+                                    <button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+                                }
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-bottom">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Inventario de Productos</h5>
+                            <span class="badge bg-info">@productos.Count productos</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (!productos.Any())
+                        {
+                            <div class="p-4 text-center text-muted">
+                                <p>No hay productos registrados. Comienza agregando uno.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Categoría</th>
+                                            <th>Precio</th>
+                                            <th>Stock</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var p in productos.OrderByDescending(x => x.IdProducto))
+                                        {
+                                            <tr>
+                                                <td class="align-middle fw-semibold">@p.Nombre</td>
+                                                <td class="align-middle">
+                                                    <span class="badge bg-secondary">@(!string.IsNullOrEmpty(p.Categoria) ? p.Categoria : "Sin categoría")</span>
+                                                </td>
+                                                <td class="align-middle">@p.Precio.ToString("C")</td>
+                                                <td class="align-middle">
+                                                    <span class="badge @(p.Stock > 10 ? "bg-success" : p.Stock > 0 ? "bg-warning" : "bg-danger")">
+                                                        @p.Stock
+                                                    </span>
+                                                </td>
+                                                <td class="text-center align-middle">
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => PrepararEditar(p)" title="Editar">
+                                                        <i class="bi bi-pencil"></i> Editar
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger ms-2" @onclick="() => ConfirmarBorrar(p.IdProducto)" title="Eliminar">
+                                                        <i class="bi bi-trash"></i> Eliminar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private Usuario? usuarioSesion;
+    private List<Producto> productos = new();
+    private Producto productoActual = new();
+    private bool esEdicion = false;
+    private string estadoMensaje = string.Empty;
+    private string tipoMensaje = "info";
+
+    private bool EsAdmin => string.Equals(usuarioSesion?.Rol, "admin", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        usuarioSesion = postgresService.ObtenerUsuarioActual();
+        Cargar();
+    }
+
+    private void Cargar()
+    {
+        productos = postgresService.ObtenerProductos();
+    }
+
+    private void FormInvalido(EditContext context)
+    {
+        estadoMensaje = "Por favor revisa los campos marcados en rojo.";
+        tipoMensaje = "warning";
+    }
+
+    private void Guardar()
+    {
+        try
+        {
+            if (esEdicion)
+            {
+                postgresService.ActualizarProducto(productoActual);
+                estadoMensaje = "Producto actualizado correctamente.";
+            }
+            else
+            {
+                postgresService.InsertarProducto(productoActual);
+                estadoMensaje = "Producto guardado correctamente.";
+            }
+
+            tipoMensaje = "success";
+            Cargar();
+            Cancelar();
+        }
+        catch
+        {
+            estadoMensaje = "Error al guardar el producto.";
+            tipoMensaje = "danger";
+        }
+    }
+
+    private void PrepararEditar(Producto p)
+    {
+        productoActual = new Producto
+        {
+            IdProducto = p.IdProducto,
+            Nombre = p.Nombre,
+            Descripcion = p.Descripcion,
+            Precio = p.Precio,
+            Stock = p.Stock,
+            Categoria = p.Categoria
+        };
+        esEdicion = true;
+        estadoMensaje = string.Empty;
+    }
+
+    private void Cancelar()
+    {
+        productoActual = new Producto();
+        esEdicion = false;
+        estadoMensaje = string.Empty;
+    }
+
+    private async Task ConfirmarBorrar(int id)
+    {
+        bool confirmado = await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar este producto?");
+        if (confirmado)
+        {
+            Borrar(id);
+        }
+    }
+
+    private void Borrar(int id)
+    {
+        try
+        {
+            postgresService.EliminarProducto(id);
+            Cargar();
+            estadoMensaje = "Producto eliminado correctamente.";
+            tipoMensaje = "success";
+        }
+        catch
+        {
+            estadoMensaje = "Error al eliminar el producto.";
+            tipoMensaje = "danger";
+        }
+    }
+}

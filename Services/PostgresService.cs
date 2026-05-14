@@ -107,6 +107,26 @@ public class PostgresService
     }
     public void InsertarProducto(Producto nuevo)
     {
+        if (nuevo is null)
+        {
+            throw new ArgumentNullException(nameof(nuevo));
+        }
+
+        if (string.IsNullOrWhiteSpace(nuevo.Nombre))
+        {
+            throw new ArgumentException("El nombre del producto es obligatorio.", nameof(nuevo.Nombre));
+        }
+
+        if (nuevo.Precio < 0)
+        {
+            throw new ArgumentException("El precio no puede ser negativo.", nameof(nuevo.Precio));
+        }
+
+        if (nuevo.Stock < 0)
+        {
+            throw new ArgumentException("El stock no puede ser negativo.", nameof(nuevo.Stock));
+        }
+
         using var conn = new MySqlConnection(connectionString);
         conn.Open();
 
@@ -116,15 +136,35 @@ public class PostgresService
 
         using var cmd = new MySqlCommand(query, conn);
         cmd.Parameters.AddWithValue("@nombre", nuevo.Nombre);
-        cmd.Parameters.AddWithValue("@descripcion", nuevo.Descripcion);
+        cmd.Parameters.AddWithValue("@descripcion", nuevo.Descripcion ?? string.Empty);
         cmd.Parameters.AddWithValue("@precio", nuevo.Precio);
         cmd.Parameters.AddWithValue("@stock", nuevo.Stock);
-        cmd.Parameters.AddWithValue("@categoria", nuevo.Categoria);
+        cmd.Parameters.AddWithValue("@categoria", string.IsNullOrWhiteSpace(nuevo.Categoria) ? string.Empty : nuevo.Categoria);
 
         cmd.ExecuteNonQuery();
     }
     public void ActualizarProducto(Producto p)
     {
+        if (p is null)
+        {
+            throw new ArgumentNullException(nameof(p));
+        }
+
+        if (string.IsNullOrWhiteSpace(p.Nombre))
+        {
+            throw new ArgumentException("El nombre del producto es obligatorio.", nameof(p.Nombre));
+        }
+
+        if (p.Precio < 0)
+        {
+            throw new ArgumentException("El precio no puede ser negativo.", nameof(p.Precio));
+        }
+
+        if (p.Stock < 0)
+        {
+            throw new ArgumentException("El stock no puede ser negativo.", nameof(p.Stock));
+        }
+
         using var conn = new MySqlConnection(connectionString);
         conn.Open();
         string query = @"UPDATE productos 
@@ -132,12 +172,16 @@ public class PostgresService
                      WHERE idProducto=@id";
         using var cmd = new MySqlCommand(query, conn);
         cmd.Parameters.AddWithValue("@n", p.Nombre);
-        cmd.Parameters.AddWithValue("@d", p.Descripcion);
+        cmd.Parameters.AddWithValue("@d", p.Descripcion ?? string.Empty);
         cmd.Parameters.AddWithValue("@p", p.Precio);
         cmd.Parameters.AddWithValue("@s", p.Stock);
-        cmd.Parameters.AddWithValue("@c", p.Categoria);
+        cmd.Parameters.AddWithValue("@c", string.IsNullOrWhiteSpace(p.Categoria) ? string.Empty : p.Categoria);
         cmd.Parameters.AddWithValue("@id", p.IdProducto);
         cmd.ExecuteNonQuery();
+    }
+    public void ClearUsuarioActual()
+    {
+        _usuarioLogueado = null;
     }
     // Variable para guardar al usuario que inició sesión
     private Usuario? _usuarioLogueado;

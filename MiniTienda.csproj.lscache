@@ -432,6 +432,7 @@ Components/
   NavMenu.razor
   ReconnectModal.razor
  Pages/
+  Carrito.razor
   Counter.razor
   Error.razor
   Home.razor
@@ -439,6 +440,7 @@ Components/
   NotFound.razor
   Productos.razor
   Register.razor
+  RegistroProductos.razor
   Weather.razor
  Routes.razor
  _Imports.razor
@@ -451,6 +453,7 @@ Components/
   NavMenu.razor
   ReconnectModal.razor
  Pages/
+  Carrito.razor
   Counter.razor
   Error.razor
   Home.razor
@@ -458,6 +461,7 @@ Components/
   NotFound.razor
   Productos.razor
   Register.razor
+  RegistroProductos.razor
   Weather.razor
  Routes.razor
  _Imports.razor

@@ -1,7 +1,207 @@
 ﻿@page "/"
+@using MiniTienda.Models
+@inject MiniTienda.Services.PostgresService postgresService
+@inject NavigationManager nav
+@rendermode InteractiveServer
+@inject IJSRuntime JS
 
-<PageTitle>Home</PageTitle>
+<PageTitle>MiniTienda</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="py-4">
+    <div class="bg-light rounded-4 p-4 shadow-sm mb-5">
+        <div class="row align-items-center gy-4">
+            <div class="col-lg-7">
+                <span class="badge bg-primary mb-3">Bienvenido a tu mini súper digital</span>
+                <h1 class="display-6 fw-bold">MiniTienda: tu tienda de la esquina en línea</h1>
+                <p class="lead text-muted">Explora productos frescos, abarrotes y artículos esenciales con una experiencia simple, rápida y accesible desde cualquier dispositivo.</p>
+            </div>
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm text-bg-white overflow-hidden">
+                    <div class="card-body">
+                        <h5 class="card-title">Tu mini súper local</h5>
+                        <p class="card-text text-muted">Compra rápido, revisa ofertas y descubre productos seleccionados para el día a día.</p>
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i> Menú claro para futuras mejoras</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-Welcome to your new app.
+    <div class="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="h4 mb-1">Productos disponibles</h2>
+            <p class="text-muted mb-0">Selecciona tu categoría favorita y encuentra lo que necesitas.</p>
+        </div>
+        <div class="text-sm-end">
+            @if (EsAdmin)
+            {
+                <button class="btn btn-success" @onclick="PrepararNuevo">
+                    <i class="bi bi-plus-circle me-1"></i> Nuevo Producto
+                </button>
+            }
+            else if (usuarioSesion != null)
+            {
+                <span class="badge bg-secondary text-uppercase">Rol: @usuarioSesion.Rol</span>
+            }
+        </div>
+    </div>
+
+    @if (EsAdmin && mostrarForm)
+    {
+        <div class="card shadow-sm border-0 mb-4 bg-light p-3 border-start border-primary border-4">
+            <h5 class="mb-3">@(esEdicion ? "Editar" : "Nuevo") Producto</h5>
+            <EditForm Model="productoActual" OnValidSubmit="Guardar">
+                <DataAnnotationsValidator />
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Nombre</label>
+                        <InputText class="form-control" @bind-Value="productoActual.Nombre" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Categoría</label>
+                        <InputSelect class="form-select" @bind-Value="productoActual.Categoria">
+                            <option value="">Seleccionar</option>
+                            <option value="Frutas y Verduras">Frutas y Verduras</option>
+                            <option value="Abarrotes">Abarrotes</option>
+                            <option value="Lácteos">Lácteos</option>
+                            <option value="Limpieza">Limpieza</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Precio</label>
+                        <InputNumber class="form-control" @bind-Value="productoActual.Precio" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Stock</label>
+                        <InputNumber class="form-control" @bind-Value="productoActual.Stock" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Descripción</label>
+                        <InputTextArea class="form-control" @bind-Value="productoActual.Descripcion" rows="2" />
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="Cancelar">Cancelar</button>
+                        <button type="submit" class="btn btn-primary btn-sm ms-2">Guardar Cambios</button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    }
+
+    @if (productos == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else if (!productos.Any())
+    {
+        <div class="alert alert-secondary">Aún no hay productos disponibles. Visita Productos para más información.</div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+            @foreach (var producto in productos.Take(6))
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title mb-0">@producto.Nombre</h5>
+                                <span class="badge bg-info text-dark">@(!string.IsNullOrEmpty(producto.Categoria) ? producto.Categoria : "Sin categoría")</span>
+                            </div>
+                            <p class="card-text text-muted mb-3">@(!string.IsNullOrEmpty(producto.Descripcion) ? producto.Descripcion : "Descripción no disponible.")</p>
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="h6 mb-0 text-primary">@producto.Precio.ToString("C")</span>
+                                    @if (EsAdmin)
+                                    {
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => PrepararEditar(producto)" title="Editar">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarBorrar(producto.IdProducto)" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                            <span class="badge @(producto.Stock > 0 ? "bg-success" : "bg-danger") align-self-center">@producto.Stock u.</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-primary" @onclick='() => nav.NavigateTo("/productos")'>Ver todos los productos</button>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Producto>? productos;
+    private Usuario? usuarioSesion;
+    private Producto productoActual = new();
+    private bool esEdicion = false;
+    private bool mostrarForm = false;
+
+    private bool EsAdmin => string.Equals(usuarioSesion?.Rol, "admin", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        usuarioSesion = postgresService.ObtenerUsuarioActual();
+        Cargar();
+    }
+
+    private void Cargar()
+    {
+        productos = postgresService.ObtenerProductos();
+    }
+
+    private void PrepararNuevo()
+    {
+        productoActual = new();
+        esEdicion = false;
+        mostrarForm = true;
+    }
+
+    private void PrepararEditar(Producto p)
+    {
+        productoActual = new Producto {
+            IdProducto = p.IdProducto,
+            Nombre = p.Nombre,
+            Descripcion = p.Descripcion,
+            Precio = p.Precio,
+            Stock = p.Stock,
+            Categoria = p.Categoria
+        };
+        esEdicion = true;
+        mostrarForm = true;
+    }
+
+    private void Cancelar()
+    {
+        productoActual = new();
+        mostrarForm = false;
+    }
+
+    private void Guardar()
+    {
+        if (esEdicion) postgresService.ActualizarProducto(productoActual);
+        else postgresService.InsertarProducto(productoActual);
+        Cargar();
+        Cancelar();
+    }
+
+    private async Task ConfirmarBorrar(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Deseas eliminar este producto del catálogo?"))
+        {
+            postgresService.EliminarProducto(id);
+            Cargar();
+        }
+    }
+}
