@@ -1,0 +1,220 @@
+@page "/admin/pedido/{id:int}"
+@using MiniTienda.Models
+@inject MiniTienda.Services.PostgresService postgresService
+@inject NavigationManager nav
+@rendermode InteractiveServer
+
+<PageTitle>Detalle del Pedido</PageTitle>
+
+@if (estaVerificando)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">Verificando acceso...</p>
+    </div>
+}
+else if (!esAdmin)
+{
+    <div class="alert alert-danger py-5 text-center" style="min-height: 400px;">
+        <h3 class="mb-3">Acceso Denegado</h3>
+        <p class="mb-4">No tienes permisos para acceder a esta pagina.</p>
+    </div>
+}
+else if (pedido == null)
+{
+    <div class="alert alert-warning py-5 text-center" style="min-height: 400px;">
+        <h3 class="mb-3">Pedido no encontrado</h3>
+        <p class="mb-4">El pedido que buscas no existe o ha sido eliminado.</p>
+    </div>
+}
+else
+{
+    <div class="py-4">
+        <!-- Boton volver -->
+        <div class="mb-4">
+            <button class="btn btn-outline-secondary" @onclick='() => nav.NavigateTo("/admin/pedidos")'>
+                ← Volver a pedidos
+            </button>
+        </div>
+
+        <!-- Cabecera del pedido -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-0 pt-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <h1 class="h3 mb-1">Pedido #@pedido.IdTicket</h1>
+                        <p class="text-muted mb-0">
+                            Realizado el @pedido.Fecha.ToString("dddd, dd 'de' MMMM 'de' yyyy 'a las' hh:mm tt")
+                        </p>
+                    </div>
+                    <div>
+                        <span class="badge bg-success fs-6 px-3 py-2">@pedido.Estado.ToUpper()</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Informacion del cliente -->
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-0 pt-4">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person"></i> Informacion del Cliente
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4 text-muted">Nombre</dt>
+                            <dd class="col-sm-8 fw-semibold">@pedido.NombreUsuario</dd>
+
+                            <dt class="col-sm-4 text-muted">Email</dt>
+                            <dd class="col-sm-8">@pedido.CorreoUsuario</dd>
+
+                            <dt class="col-sm-4 text-muted">ID Usuario</dt>
+                            <dd class="col-sm-8">#@pedido.IdUsuario</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informacion del pedido -->
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-0 pt-4">
+                        <h5 class="mb-0">
+                            <i class="bi bi-receipt"></i> Resumen del Pedido
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5 text-muted">ID Carrito</dt>
+                            <dd class="col-sm-7">#@pedido.IdCarrito</dd>
+
+                            <dt class="col-sm-5 text-muted">Fecha de compra</dt>
+                            <dd class="col-sm-7">@pedido.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</dd>
+
+                            <dt class="col-sm-5 text-muted">Subtotal</dt>
+                            <dd class="col-sm-7">@($"{subtotal:F2}")</dd>
+
+                            <dt class="col-sm-5 text-muted">IVA (16%)</dt>
+                            <dd class="col-sm-7">@($"{iva:F2}")</dd>
+
+                            <dt class="col-sm-5 text-muted fw-bold">Total</dt>
+                            <dd class="col-sm-7 fw-bold text-primary h5">@($"{pedido.Total:F2}")</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Productos del pedido -->
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-0 pt-4">
+                        <h5 class="mb-0">
+                            <i class="bi bi-box-seam"></i> Productos del Pedido
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (itemsPedido == null || !itemsPedido.Any())
+                        {
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-inbox fs-1"></i>
+                                <p class="mt-2">No hay productos en este pedido</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th>Descripcion</th>
+                                            <th class="text-center">Cantidad</th>
+                                            <th class="text-end">Precio Unitario</th>
+                                            <th class="text-end">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in itemsPedido)
+                                        {
+                                            <tr>
+                                                <td class="fw-semibold">@item.NombreProducto</td>
+                                                <td class="text-muted">@(string.IsNullOrEmpty(item.DescripcionProducto) ? "Sin descripcion" : item.DescripcionProducto)</td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-secondary rounded-pill">@item.Cantidad</span>
+                                                </td>
+                                                <td class="text-end">@($"{item.PrecioUnitario:F2}")</td>
+                                                <td class="text-end fw-semibold">@($"{item.PrecioUnitario * item.Cantidad:F2}")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <th colspan="4" class="text-end fw-bold">Total del pedido:</th>
+                                            <th class="text-end fw-bold text-primary">@($"{pedido.Total:F2}")</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de accion (opcional) -->
+            <div class="col-12">
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" @onclick='() => nav.NavigateTo("/admin/pedidos")'>
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    
+    private bool esAdmin = false;
+    private bool estaVerificando = true;
+    private Ticket? pedido;
+    private List<CarritoItem>? itemsPedido;
+    
+    private decimal subtotal => itemsPedido?.Sum(i => i.PrecioUnitario * i.Cantidad) ?? 0;
+    private decimal iva => subtotal * 0.16m;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var usuario = postgresService.ObtenerUsuarioActual();
+        
+        if (usuario != null && string.Equals(usuario.Rol, "admin", StringComparison.OrdinalIgnoreCase))
+        {
+            esAdmin = true;
+            await CargarPedido();
+        }
+        
+        estaVerificando = false;
+    }
+
+    private async Task CargarPedido()
+    {
+        try
+        {
+            pedido = postgresService.ObtenerTicketPorId(id);
+            
+            if (pedido != null)
+            {
+                itemsPedido = postgresService.ObtenerItemsCarrito(pedido.IdCarrito);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando pedido: {ex.Message}");
+        }
+        
+        StateHasChanged();
+    }
+}

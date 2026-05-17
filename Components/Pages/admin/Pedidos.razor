@@ -1,0 +1,106 @@
+@page "/admin/pedidos"
+@using MiniTienda.Models
+@inject MiniTienda.Services.PostgresService postgresService
+@inject NavigationManager nav
+@rendermode InteractiveServer
+
+<PageTitle>Administrar Pedidos</PageTitle>
+
+@if (estaVerificando)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">Verificando acceso...</p>
+    </div>
+}
+else if (!esAdmin)
+{
+    <div class="alert alert-danger py-5 text-center">
+        <h3>Error</h3>
+        <p>Ocurrió un error.</p>
+    </div>
+}
+else
+{
+    <div class="py-4">
+        <h1 class="h3 mb-4">Todos los Pedidos</h1>
+                    
+        @if (pedidos == null)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        }
+        else if (!pedidos.Any())
+        {
+            <div class="alert alert-info">No hay pedidos registrados.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Email</th>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pedido in pedidos)
+                        {
+                            <tr>
+                                <td>@pedido.IdTicket</td>
+                                <td>@pedido.NombreUsuario</td>
+                                <td>@pedido.CorreoUsuario</td>
+                                <td>@pedido.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@($"${pedido.Total:F2}")</td>
+                                <td>
+                                    <span class="badge bg-success">@pedido.Estado</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" @onclick="() => VerDetalle(pedido.IdTicket)">
+                                        Ver
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool esAdmin = false;
+    private bool estaVerificando = true;
+    private List<Ticket>? pedidos;
+
+    protected override void OnInitialized()
+    {
+        var usuario = postgresService.ObtenerUsuarioActual();
+        
+        if (usuario != null && string.Equals(usuario.Rol, "admin", StringComparison.OrdinalIgnoreCase))
+        {
+            esAdmin = true;
+            CargarDatos();
+        }
+        
+        estaVerificando = false;
+    }
+
+    private void CargarDatos()
+    {
+        pedidos = postgresService.ObtenerTodosLosTickets();
+    }
+
+    private void VerDetalle(int idTicket)
+    {
+        nav.NavigateTo($"/admin/pedido/{idTicket}");
+    }
+}

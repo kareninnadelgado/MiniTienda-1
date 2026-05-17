@@ -1,0 +1,326 @@
+@page "/admin/estadisticas"
+@using MiniTienda.Models
+@inject MiniTienda.Services.PostgresService postgresService
+@inject NavigationManager nav
+@rendermode InteractiveServer
+
+<PageTitle>Estadisticas - Panel Admin</PageTitle>
+
+@if (estaVerificando)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">Verificando acceso...</p>
+    </div>
+}
+else if (!esAdmin)
+{
+    <div class="alert alert-danger py-5 text-center" style="min-height: 400px;">
+        <h3 class="mb-3">Acceso Denegado</h3>
+        <p class="mb-4">No tienes permisos para acceder a esta pagina.</p>
+    </div>
+}
+else
+{
+    <div class="py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">Panel de Estadisticas</h1>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="CargarDatos">
+                <i class="bi bi-arrow-repeat"></i> Actualizar
+            </button>
+        </div>
+
+        @if (estaCargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Cargando estadisticas...</p>
+            </div>
+        }
+        else
+        {
+            <!-- Tarjetas de resumen -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1 opacity-75">Ingresos Totales</h6>
+                                    <h2 class="display-6 fw-bold mb-0">@($"{ingresosTotales:F2}")</h2>
+                                </div>
+                                <i class="bi bi-currency-dollar fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1 opacity-75">Pedidos Completados</h6>
+                                    <h2 class="display-6 fw-bold mb-0">@totalPedidos</h2>
+                                </div>
+                                <i class="bi bi-cart-check fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-warning text-dark border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title mb-1 opacity-75">Carritos Abandonados</h6>
+                                    <h2 class="display-6 fw-bold mb-0">@carritosAbandonados</h2>
+                                </div>
+                                <i class="bi bi-cart-x fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- Productos mas vendidos -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-0 pt-4 pb-0">
+                            <h5 class="mb-0">Top 5 Productos Mas Vendidos</h5>
+                            <p class="text-muted small mt-1">Basado en pedidos completados</p>
+                        </div>
+                        <div class="card-body">
+                            @if (productosMasVendidos == null || !productosMasVendidos.Any())
+                            {
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-bar-chart fs-1"></i>
+                                    <p class="mt-2">No hay datos de ventas aun</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Producto</th>
+                                                <th class="text-center">Vendidos</th>
+                                                <th class="text-end">Ingreso</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (int i = 0; i < productosMasVendidos.Count; i++)
+                                            {
+                                                var item = productosMasVendidos[i];
+                                                <tr>
+                                                    <td class="fw-bold">@(i + 1)</td>
+                                                    <td>@item.NombreProducto</td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-primary rounded-pill">@item.TotalVendido</span>
+                                                    </td>
+                                                    <td class="text-end fw-bold text-success">@($"{item.IngresoTotal:F2}")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Productos nunca comprados -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-0 pt-4 pb-0">
+                            <h5 class="mb-0">Productos Sin Ventas</h5>
+                            <p class="text-muted small mt-1">Nunca han sido comprados</p>
+                        </div>
+                        <div class="card-body">
+                            @if (productosNuncaComprados == null || !productosNuncaComprados.Any())
+                            {
+                                <div class="text-center text-success py-4">
+                                    <i class="bi bi-check-circle fs-1"></i>
+                                    <p class="mt-2">Todos los productos han sido vendidos al menos una vez</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th>Categoria</th>
+                                                <th class="text-center">Stock</th>
+                                                <th class="text-end">Precio</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var producto in productosNuncaComprados)
+                                            {
+                                                <tr>
+                                                    <td>@producto.Nombre</td>
+                                                    <td>@(string.IsNullOrEmpty(producto.Categoria) ? "Sin categoria" : producto.Categoria)</td>
+                                                    <td class="text-center">
+                                                        @if (producto.Stock <= 0)
+                                                        {
+                                                            <span class="badge bg-danger">Agotado</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-secondary">@producto.Stock u.</span>
+                                                        }
+                                                    </td>
+                                                    <td class="text-end">@($"{producto.Precio:F2}")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pedidos recientes -->
+                <div class="col-12 mt-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white border-0 pt-4 pb-0">
+                            <h5 class="mb-0">Pedidos Recientes</h5>
+                            <p class="text-muted small mt-1">Ultimos 10 pedidos realizados</p>
+                        </div>
+                        <div class="card-body">
+                            @if (pedidosRecientes == null || !pedidosRecientes.Any())
+                            {
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox fs-1"></i>
+                                    <p class="mt-2">No hay pedidos registrados</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>ID Pedido</th>
+                                                <th>Cliente</th>
+                                                <th>Email</th>
+                                                <th>Fecha</th>
+                                                <th>Total</th>
+                                                <th>Estado</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var pedido in pedidosRecientes)
+                                            {
+                                                <tr>
+                                                    <td class="fw-bold">#@pedido.IdTicket</td>
+                                                    <td>@pedido.NombreUsuario</td>
+                                                    <td>@pedido.CorreoUsuario</td>
+                                                    <td>@pedido.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                                    <td class="text-success fw-bold">@($"{pedido.Total:F2}")</td>
+                                                    <td>
+                                                        <span class="badge bg-success">@pedido.Estado</span>
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-outline-info" 
+                                                                @onclick="() => VerDetallePedido(pedido.IdTicket)"
+                                                                title="Ver detalle">
+                                                            Ver
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool esAdmin = false;
+    private bool estaVerificando = true;
+    private bool estaCargando = false;
+    
+    private decimal ingresosTotales = 0;
+    private int totalPedidos = 0;
+    private int carritosAbandonados = 0;
+    private List<ProductoMasVendido>? productosMasVendidos;
+    private List<Producto>? productosNuncaComprados;
+    private List<Ticket>? pedidosRecientes;
+
+    protected override void OnInitialized()
+    {
+        var usuario = postgresService.ObtenerUsuarioActual();
+        
+        if (usuario != null && string.Equals(usuario.Rol, "admin", StringComparison.OrdinalIgnoreCase))
+        {
+            esAdmin = true;
+            CargarDatos();
+        }
+        
+        estaVerificando = false;
+    }
+
+    private async void CargarDatos()
+    {
+        estaCargando = true;
+        StateHasChanged();
+        
+        await Task.Delay(100); // Pequeña pausa para UI
+        
+        try
+        {
+            ingresosTotales = postgresService.ObtenerIngresosTotales();
+            
+            var productosVendidos = postgresService.ObtenerProductosMasVendidos(5);
+            productosMasVendidos = productosVendidos.Select(p => new ProductoMasVendido
+            {
+                NombreProducto = p.NombreProducto,
+                TotalVendido = p.TotalVendido,
+                IngresoTotal = p.IngresoTotal
+            }).ToList();
+            
+            productosNuncaComprados = postgresService.ObtenerProductosNuncaComprados();
+            
+            pedidosRecientes = postgresService.ObtenerPedidosRecientes(10);
+            totalPedidos = pedidosRecientes?.Count ?? 0;
+            
+            var abandonados = postgresService.ObtenerCarritosAbandonados(7);
+            carritosAbandonados = abandonados?.Count ?? 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando estadisticas: {ex.Message}");
+        }
+        finally
+        {
+            estaCargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void VerDetallePedido(int idTicket)
+    {
+        nav.NavigateTo($"/admin/pedido/{idTicket}");
+    }
+
+    // Clase auxiliar para los productos mas vendidos
+    public class ProductoMasVendido
+    {
+        public string NombreProducto { get; set; } = string.Empty;
+        public int TotalVendido { get; set; }
+        public decimal IngresoTotal { get; set; }
+    }
+}

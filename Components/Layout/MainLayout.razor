@@ -13,19 +13,37 @@
                 @if (EsAdmin)
                 {
                     <li class="nav-item">
-                        <NavLink class="nav-link" href="/registro-productos">Registro</NavLink>
+                        <NavLink class="nav-link" href="/admin/pedidos">Pedidos</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/admin/estadisticas">Estadisticas</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/productos">Productos</NavLink>
                     </li>
                 }
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="/">Inicio</NavLink>
-                </li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="/productos">Productos</NavLink>
-                </li>
-                @if (usuarioSesion != null && !EsAdmin)
+                else if (usuarioSesion != null && usuarioSesion.Rol == "cliente")
                 {
                     <li class="nav-item">
+                        <NavLink class="nav-link" href="/">Inicio</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/productos">Productos</NavLink>
+                    </li>
+                    <li class="nav-item">
                         <NavLink class="nav-link" href="/carrito">Carrito</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/historial-pedidos">Historial</NavLink>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/">Inicio</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="/productos">Productos</NavLink>
                     </li>
                 }
             </ul>

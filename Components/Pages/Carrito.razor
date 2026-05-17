@@ -1,15 +1,321 @@
 @page "/carrito"
+@using MiniTienda.Models
+@inject MiniTienda.Services.PostgresService postgresService
 @inject NavigationManager nav
+@rendermode InteractiveServer
 
-<PageTitle>Carrito</PageTitle>
+<PageTitle>Carrito de Compras</PageTitle>
 
 <div class="py-5">
-    <div class="card shadow-sm border-0">
-        <div class="card-body">
-            <h1 class="h4 mb-3">Carrito de compras</h1>
-            <p class="text-muted">Este módulo está reservado para la futura implementación del carrito y la gestión de pedidos.</p>
-            <div class="alert alert-info">Aquí se mostrará el resumen de los productos seleccionados, cantidades y el total cuando se integre el carrito.</div>
-            <button class="btn btn-primary" @onclick='() => nav.NavigateTo("/productos")'>Volver a productos</button>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Carrito de Compras</h1>
+        <a href="/productos" class="btn btn-outline-secondary">← Volver a productos</a>
     </div>
+
+    @if (!string.IsNullOrEmpty(mensajeExito))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @mensajeExito
+            <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @mensajeError
+            <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+        </div>
+    }
+
+    @if (estaCargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Cargando carrito...</p>
+        </div>
+    }
+    else if (usuarioSesion == null)
+    {
+        <div class="alert alert-warning">
+            Debes <a href="/login" class="alert-link">iniciar sesión</a> para acceder al carrito.
+        </div>
+    }
+    else if (carritoItems == null || !carritoItems.Any())
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center py-5">
+                <h2 class="h5 mb-3">Tu carrito está vacío</h2>
+                <p class="text-muted mb-4">No has agregado ningún producto aún.</p>
+                <a href="/productos" class="btn btn-primary">Ir a comprar</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row gy-4">
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <h2 class="h5 mb-4">Productos en el carrito (@carritoItems.Count)</h2>
+                        
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-end">Precio</th>
+                                        <th class="text-center">Cantidad</th>
+                                        <th class="text-end">Subtotal</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in carritoItems)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div>
+                                                    <div class="fw-bold">@item.NombreProducto</div>
+                                                    <small class="text-muted">@item.DescripcionProducto</small>
+                                                </div>
+                                            </td>
+                                            <td class="text-end">@item.PrecioUnitario.ToString("C")</td>
+                                            <td class="text-center">
+                                                <div class="input-group input-group-sm" style="width: 100px; margin: 0 auto;">
+                                                    <button class="btn btn-outline-secondary" 
+                                                        @onclick="() => ActualizarCantidad(item.IdProducto, item.Cantidad - 1)"
+                                                        disabled="@(item.Cantidad <= 1 || estaCargando)">−</button>
+                                                    <input type="number" 
+                                                        class="form-control text-center" 
+                                                        value="@item.Cantidad" 
+                                                        min="1" 
+                                                        max="99"
+                                                        step="1"
+                                                        @onchange="@((ChangeEventArgs e) => ActualizarCantidadDirecta(item.IdProducto, e))"
+                                                        disabled="@estaCargando" />
+                                                    <button class="btn btn-outline-secondary" 
+                                                        @onclick="() => ActualizarCantidad(item.IdProducto, item.Cantidad + 1)"
+                                                        disabled="@estaCargando">+</button>
+                                                </div>
+                                            </td>
+                                            <td class="text-end fw-bold">@($"{item.PrecioUnitario * item.Cantidad:C}")</td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                    @onclick="() => EliminarDelCarrito(item.IdProducto)"
+                                                    disabled="@estaCargando"
+                                                    title="Eliminar del carrito">
+                                                    🗑️
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top">
+                            <button class="btn btn-outline-danger" 
+                                @onclick="VaciarCarrito"
+                                disabled="@estaCargando">
+                                🗑️ Vaciar carrito
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 position-sticky" style="top: 20px;">
+                    <div class="card-body">
+                        <h2 class="h5 mb-4">Resumen del pedido</h2>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Subtotal (IVA incluido):</span>
+                                <span>@($"{total:C}")</span>
+                            </div>
+                            <hr />
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">Total a pagar:</span>
+                                <span class="fw-bold text-primary h5">@($"{total:C}")</span>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-success w-100" 
+                            @onclick="FinalizarCompra"
+                            disabled="@(estaCargando || !carritoItems.Any())">
+                            @if (estaCargando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            }
+                            Finalizar compra (simular pago)
+                        </button>
+
+                        <small class="text-muted d-block mt-3">
+                            ✓ Pago simulado (sin procesar tarjetas)
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
+
+@code {
+    private Usuario? usuarioSesion;
+    private List<CarritoItem>? carritoItems;
+    private MiniTienda.Models.Carrito? carritoActual;
+    private bool estaCargando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        usuarioSesion = postgresService.ObtenerUsuarioActual();
+        CargarCarrito();
+    }
+
+    private void CargarCarrito()
+    {
+        estaCargando = true;
+
+        try
+        {
+            if (usuarioSesion == null)
+            {
+                carritoItems = new List<CarritoItem>();
+                return;
+            }
+
+            carritoActual = postgresService.ObtenerCarritoActivo(usuarioSesion.IdUsuario);
+            
+            if (carritoActual == null)
+            {
+                carritoItems = new List<CarritoItem>();
+            }
+            else
+            {
+                carritoItems = postgresService.ObtenerItemsCarrito(carritoActual.IdCarrito);
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el carrito: {ex.Message}";
+            carritoItems = new List<CarritoItem>();
+        }
+        finally
+        {
+            estaCargando = false;
+        }
+    }
+
+    private decimal total => carritoItems?.Sum(ci => ci.PrecioUnitario * ci.Cantidad) ?? 0;
+
+    private async Task ActualizarCantidad(int idProducto, int nuevaCantidad)
+    {
+        try
+        {
+            if (nuevaCantidad <= 0)
+            {
+                EliminarDelCarrito(idProducto);
+                return;
+            }
+
+            // Validar stock
+            if (!postgresService.ValidarStockDisponible(idProducto, nuevaCantidad))
+            {
+                mensajeError = "Stock insuficiente para la cantidad solicitada.";
+                await Task.Delay(2000);
+                mensajeError = string.Empty;
+                CargarCarrito();
+                StateHasChanged();
+                return;
+            }
+
+            postgresService.ActualizarCantidadItem(carritoActual!.IdCarrito, idProducto, nuevaCantidad);
+            CargarCarrito();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al actualizar cantidad: {ex.Message}";
+        }
+    }
+
+    private async Task ActualizarCantidadDirecta(int idProducto, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var cantidad))
+        {
+            await ActualizarCantidad(idProducto, cantidad);
+        }
+    }
+
+    private void EliminarDelCarrito(int idProducto)
+    {
+        try
+        {
+            postgresService.EliminarDelCarrito(carritoActual!.IdCarrito, idProducto);
+            CargarCarrito();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar producto: {ex.Message}";
+        }
+    }
+
+    private void VaciarCarrito()
+    {
+        try
+        {
+            postgresService.VaciarCarrito(carritoActual!.IdCarrito);
+            CargarCarrito();
+            mensajeExito = "Carrito vaciado correctamente.";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al vaciar carrito: {ex.Message}";
+        }
+    }
+
+    private async Task FinalizarCompra()
+    {
+        try
+        {
+            estaCargando = true;
+            mensajeError = string.Empty;
+
+            if (usuarioSesion == null)
+            {
+                mensajeError = "Debes estar autenticado para finalizar la compra.";
+                return;
+            }
+
+            if (carritoActual == null)
+            {
+                mensajeError = "No hay carrito activo.";
+                return;
+            }
+
+            var ticket = postgresService.FinalizarCompra(usuarioSesion.IdUsuario, carritoActual.IdCarrito);
+
+            if (ticket != null)
+            {
+                mensajeExito = "¡Compra realizada con éxito! Redirigiendo al historial de pedidos...";
+                await Task.Delay(2000);
+                nav.NavigateTo("/historial-pedidos");
+            }
+            else
+            {
+                mensajeError = "Error al procesar la compra.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al finalizar compra: {ex.Message}";
+            estaCargando = false;
+        }
+    }
+}

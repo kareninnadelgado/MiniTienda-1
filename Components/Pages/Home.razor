@@ -29,21 +29,53 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrEmpty(mensajeExito))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @mensajeExito
+            <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @mensajeError
+            <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+        </div>
+    }
+
     <div class="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
         <div>
             <h2 class="h4 mb-1">Productos disponibles</h2>
-            <p class="text-muted mb-0">Selecciona tu categoría favorita y encuentra lo que necesitas.</p>
+            <p class="text-muted mb-0">Selecciona tu categoria favorita y encuentra lo que necesitas.</p>
         </div>
         <div class="text-sm-end">
             @if (EsAdmin)
             {
-                <button class="btn btn-success" @onclick="PrepararNuevo">
-                    <i class="bi bi-plus-circle me-1"></i> Nuevo Producto
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success" @onclick="PrepararNuevo">
+                        Nuevo Producto
+                    </button>
+                    <a href="/admin/pedidos" class="btn btn-outline-primary">
+                        Pedidos
+                    </a>
+                    <a href="/admin/estadisticas" class="btn btn-outline-info">
+                        Estadisticas
+                    </a>
+                </div>
             }
-            else if (usuarioSesion != null)
+            else if (usuarioSesion != null && usuarioSesion.Rol == "cliente")
             {
-                <span class="badge bg-secondary text-uppercase">Rol: @usuarioSesion.Rol</span>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge bg-secondary text-uppercase">Rol: @usuarioSesion.Rol</span>
+                    <a href="/carrito" class="btn btn-sm btn-primary">
+                        Mi Carrito
+                    </a>
+                    <a href="/historial-pedidos" class="btn btn-sm btn-outline-secondary">
+                        Historial
+                    </a>
+                </div>
             }
         </div>
     </div>
@@ -114,21 +146,43 @@
                             </div>
                             <p class="card-text text-muted mb-3">@(!string.IsNullOrEmpty(producto.Descripcion) ? producto.Descripcion : "Descripción no disponible.")</p>
                             <div class="mt-auto">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="h6 mb-0 text-primary">@producto.Precio.ToString("C")</span>
-                                    @if (EsAdmin)
-                                    {
-                                        <div class="d-flex gap-1">
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => PrepararEditar(producto)" title="Editar">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarBorrar(producto.IdProducto)" title="Eliminar">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                            <span class="badge @(producto.Stock > 0 ? "bg-success" : "bg-danger") align-self-center">@producto.Stock u.</span>
-                                        </div>
-                                    }
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="h5 text-primary mb-0">@producto.Precio.ToString("C")</span>
+                                    <span class="badge @(producto.Stock > 0 ? "bg-success" : "bg-danger")">
+                                        @(producto.Stock > 0 ? "Disponible" : "Agotado")
+                                    </span>
                                 </div>
+                                
+                                @if (EsAdmin)
+                                {
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => PrepararEditar(producto)" title="Editar">
+                                            <i class="bi bi-pencil"></i> Editar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarBorrar(producto.IdProducto)" title="Eliminar">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </button>
+                                        <span class="badge @(producto.Stock > 0 ? "bg-success" : "bg-danger") align-self-center">@producto.Stock u.</span>
+                                    </div>
+                                }
+                                else if (usuarioSesion?.Rol == "cliente" && producto.Stock > 0)
+                                {
+                                    <button class="btn btn-sm btn-primary w-100" 
+                                        @onclick="() => AgregarAlCarrito(producto)" 
+                                        disabled="@estaCargando">
+                                        @if (estaCargando && productoEnProceso == producto.IdProducto)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        }
+                                        Añadir al carrito
+                                    </button>
+                                }
+                                else if (usuarioSesion?.Rol == "cliente" && producto.Stock <= 0)
+                                {
+                                    <button class="btn btn-sm btn-secondary w-100" disabled>
+                                        Agotado
+                                    </button>
+                                }
                             </div>
                         </div>
                     </div>
@@ -147,6 +201,10 @@
     private Producto productoActual = new();
     private bool esEdicion = false;
     private bool mostrarForm = false;
+    private bool estaCargando = false;
+    private int productoEnProceso = 0;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
 
     private bool EsAdmin => string.Equals(usuarioSesion?.Rol, "admin", StringComparison.OrdinalIgnoreCase);
 
@@ -202,6 +260,68 @@
         {
             postgresService.EliminarProducto(id);
             Cargar();
+        }
+    }
+
+    private async Task AgregarAlCarrito(Producto producto)
+    {
+        try
+        {
+            estaCargando = true;
+            productoEnProceso = producto.IdProducto;
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+
+            if (usuarioSesion == null)
+            {
+                mensajeError = "Debes estar autenticado para agregar productos al carrito.";
+                return;
+            }
+
+            // Validar stock
+            if (!postgresService.ValidarStockDisponible(producto.IdProducto, 1))
+            {
+                mensajeError = $"Stock insuficiente para {producto.Nombre}";
+                return;
+            }
+
+            // Obtener o crear carrito activo
+            var carrito = postgresService.ObtenerCarritoActivo(usuarioSesion.IdUsuario);
+            if (carrito == null)
+            {
+                carrito = postgresService.CrearCarrito(usuarioSesion.IdUsuario);
+            }
+
+            // Agregar al carrito
+            postgresService.AgregarAlCarrito(carrito.IdCarrito, producto.IdProducto, 1);
+
+            // Registrar auditoría
+            postgresService.RegistrarAuditoria(
+                usuarioSesion.IdUsuario,
+                "agregar_carrito",
+                "producto",
+                producto.IdProducto,
+                $"{{\"nombre\": \"{producto.Nombre}\", \"precio\": {producto.Precio}}}"
+            );
+
+            mensajeExito = $"{producto.Nombre} agregado al carrito correctamente.";
+            
+            // Limpiar mensaje después de 3 segundos
+            await Task.Delay(3000);
+            mensajeExito = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al agregar al carrito: {ex.Message}";
+            await Task.Delay(3000);
+            mensajeError = string.Empty;
+        }
+        finally
+        {
+            estaCargando = false;
+            productoEnProceso = 0;
+            StateHasChanged();
         }
     }
 }

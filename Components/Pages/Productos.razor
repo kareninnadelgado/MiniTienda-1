@@ -1,6 +1,7 @@
 @page "/productos"
 @using MiniTienda.Models
 @inject MiniTienda.Services.PostgresService postgresService
+@inject NavigationManager nav
 @rendermode InteractiveServer
 
 <PageTitle>Productos</PageTitle>
@@ -14,10 +15,31 @@
         <div class="text-sm-end">
             @if (usuarioSesion != null && usuarioSesion.Rol == "cliente")
             {
-                <span class="badge bg-secondary text-uppercase">Rol: @usuarioSesion.Rol</span>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge bg-secondary text-uppercase">Rol: @usuarioSesion.Rol</span>
+                    <a href="/carrito" class="btn btn-sm btn-primary">
+                        🛒 Mi Carrito
+                    </a>
+                </div>
             }
         </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(mensajeExito))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @mensajeExito
+            <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @mensajeError
+            <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+        </div>
+    }
 
     <div class="row gy-4">
         <div class="col-lg-3">
@@ -71,12 +93,33 @@
                                         @(!string.IsNullOrEmpty(p.Descripcion) ? p.Descripcion : "Sin descripción disponible.")
                                     </p>
                                     <div class="mt-auto">
-                                        <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
                                             <span class="h6 text-primary mb-0">@p.Precio.ToString("C")</span>
                                             <span class="badge @(p.Stock > 0 ? "bg-success" : "bg-danger")">
                                                 @(p.Stock > 0 ? "Disponible" : "Agotado")
                                             </span>
                                         </div>
+                                        @if (usuarioSesion?.Rol == "cliente")
+                                        {
+                                            @if (p.Stock > 0)
+                                            {
+                                                <button class="btn btn-sm btn-primary w-100" 
+                                                    @onclick="() => AgregarAlCarrito(p)" 
+                                                    disabled="@estaCargando">
+                                                    @if (estaCargando)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    }
+                                                    Añadir al carrito
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-sm btn-secondary w-100" disabled>
+                                                    Agotado
+                                                </button>
+                                            }
+                                        }
                                     </div>
                                 </div>
                             </div>
@@ -99,6 +142,9 @@
     private List<Producto>? productos;
     private string filtro = string.Empty;
     private string categoriaFiltro = string.Empty;
+    private bool estaCargando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
 
     protected override void OnInitialized()
     {
@@ -121,5 +167,59 @@
     {
         filtro = string.Empty;
         categoriaFiltro = string.Empty;
+    }
+
+    private async Task AgregarAlCarrito(Producto producto)
+    {
+        try
+        {
+            estaCargando = true;
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+
+            if (usuarioSesion == null)
+            {
+                mensajeError = "Debes estar autenticado para agregar productos al carrito.";
+                return;
+            }
+
+            // Validar stock
+            if (!postgresService.ValidarStockDisponible(producto.IdProducto, 1))
+            {
+                mensajeError = $"Stock insuficiente para {producto.Nombre}";
+                return;
+            }
+
+            // Obtener o crear carrito activo
+            var carrito = postgresService.ObtenerCarritoActivo(usuarioSesion.IdUsuario);
+            if (carrito == null)
+            {
+                carrito = postgresService.CrearCarrito(usuarioSesion.IdUsuario);
+            }
+
+            // Agregar al carrito
+            postgresService.AgregarAlCarrito(carrito.IdCarrito, producto.IdProducto, 1);
+
+            // Registrar auditoría
+            postgresService.RegistrarAuditoria(
+                usuarioSesion.IdUsuario,
+                "agregar_carrito",
+                "producto",
+                producto.IdProducto,
+                $"{{\"nombre\": \"{producto.Nombre}\", \"precio\": {producto.Precio}}}"
+            );
+
+            mensajeExito = $"{producto.Nombre} agregado al carrito correctamente.";
+            await Task.Delay(1500);
+            mensajeExito = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al agregar al carrito: {ex.Message}";
+        }
+        finally
+        {
+            estaCargando = false;
+        }
     }
 }
